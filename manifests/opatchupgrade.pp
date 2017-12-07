@@ -75,8 +75,7 @@ define oradb::opatchupgrade(
           ensure  => absent,
           recurse => true,
           force   => true,
-        } ->
-        exec { "extract opatch ${title} ${patch_file}":
+        } -> exec { "extract opatch ${title} ${patch_file}":
           command   => "unzip -o ${download_dir}/${patch_file} -d ${oracle_home}",
           path      => $exec_path,
           user      => $user,
@@ -85,44 +84,46 @@ define oradb::opatchupgrade(
           require   => File["${download_dir}/${patch_file}"],
         }
 
-        if ( $csi_number != undef and support_id != undef ) {
-          exec { "exec emocmrsp ${title} ${opversion}":
-            cwd       => $patch_dir,
-            command   => "${patch_dir}/ocm/bin/emocmrsp -repeater NONE ${csi_number} ${support_id}",
-            path      => $exec_path,
-            user      => $user,
-            group     => $group,
-            logoutput => true,
-            require   => Exec["extract opatch ${patch_file}"],
-          }
-        } else {
+        # version lower than, do emocmrsp
+        if ( versioncmp($opversion, '12.2.0.1.5') == -1 ) {
+          if ( $csi_number != undef and support_id != undef ) {
+            exec { "exec emocmrsp ${title} ${opversion}":
+              cwd       => $patch_dir,
+              command   => "${patch_dir}/ocm/bin/emocmrsp -repeater NONE ${csi_number} ${support_id}",
+              path      => $exec_path,
+              user      => $user,
+              group     => $group,
+              logoutput => true,
+              require   => Exec["extract opatch ${patch_file}"],
+            }
+          } else {
 
-          if ! defined(Package['expect']) {
-            package { 'expect':
-              ensure => present,
+            if ! defined(Package['expect']) {
+              package { 'expect':
+                ensure => present,
+              }
+            }
+
+            file { "${download_dir}/opatch_upgrade_${title}_${opversion}.ksh":
+              ensure  => present,
+              content => epp('oradb/ocm.rsp.epp', { 'patchDir' => $patch_dir }),
+              mode    => '0775',
+              owner   => $user,
+              group   => $group,
+            }
+
+            exec { "ksh ${download_dir}/opatch_upgrade_${title}_${opversion}.ksh":
+              cwd       => $patch_dir,
+              path      => $exec_path,
+              user      => $user,
+              group     => $group,
+              logoutput => true,
+              require   => [File["${download_dir}/opatch_upgrade_${title}_${opversion}.ksh"],
+                            Exec["extract opatch ${title} ${patch_file}"],
+                            Package['expect'],],
             }
           }
-
-          file { "${download_dir}/opatch_upgrade_${title}_${opversion}.ksh":
-            ensure  => present,
-            content => epp('oradb/ocm.rsp.epp', { 'patchDir' => $patch_dir }),
-            mode    => '0775',
-            owner   => $user,
-            group   => $group,
-          }
-
-          exec { "ksh ${download_dir}/opatch_upgrade_${title}_${opversion}.ksh":
-            cwd       => $patch_dir,
-            path      => $exec_path,
-            user      => $user,
-            group     => $group,
-            logoutput => true,
-            require   => [File["${download_dir}/opatch_upgrade_${title}_${opversion}.ksh"],
-                          Exec["extract opatch ${title} ${patch_file}"],
-                          Package['expect'],],
-          }
         }
-
       }
       default: {
         fail('Unrecognized operating system')

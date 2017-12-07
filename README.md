@@ -29,6 +29,7 @@ Dependency with
 Should work on Docker, for Solaris and on all Linux version like RedHat, CentOS, Ubuntu, Debian, Suse SLES or OracleLinux
 - CentOS 7.3 vagrant box with Oracle Database 12.2.0.1 with pluggable databases [12c pluggable db puppet 4 vagrant box](https://github.com/biemond/biemond-oradb-vagrant-12.2-CDB-puppet4_3)
 - Docker image of Oracle Database 12.1 SE [Docker Oracle Database 12.1.0.1](https://github.com/biemond/docker-database-puppet)
+- CentOS 7.2 vagrant box with Oracle Database 12.1 and Enterprise Manager 13.2.0.0 [Enterprise puppet 4 vagrant box](https://github.com/biemond/biemond-em-13.2-puppet4_3)
 - CentOS 6.7 vagrant box with Oracle Database 12.1 and Enterprise Manager 12.1.0.5 [Enterprise puppet 4 vagrant box](https://github.com/biemond/biemond-em-12c-puppet4_3)
 - CentOS 7.3 vagrant box with Oracle Database 12.2.0.1 on NFS ASM [ASM puppet 4 vagrant box](https://github.com/biemond/biemond-oradb-vagrant-12.2-ASM-puppet4_3)
 - CentOS 7.2 vagrant box with Oracle Database 12.1.0.2 on NFS ASM [ASM puppet 4 vagrant box](https://github.com/biemond/biemond-oradb-vagrant-12.1-ASM-puppet4_3)
@@ -58,7 +59,7 @@ Should work for Puppet >=  4.0
 - Stop/Start database instances with db_control puppet resource type
 
 ## Enterprise Manager
-- Enterprise Manager Server 12.1.0.4, 12.1.0.5, 12c cloud installation / configuration
+- Enterprise Manager Server 13.2.0.0, 12.1.0.4, 12.1.0.5, 13 & 12c cloud installation / configuration
 - Agent installation via AgentPull.sh & AgentDeploy.sh
 
 ## GoldenGate
@@ -87,7 +88,7 @@ In combination with the [oracle](http://forge.puppetlabs.com/hajee/oracle) modul
 
 Some manifests like installdb.pp, opatch.pp or rcusoa.pp supports an alternative mountpoint for the big oracle files.
 When not provided it uses the files location of the oradb puppet module
-else you can use $puppet_download_mnt_point => "/mnt" or "puppet:///modules/xxxx/"
+else you can use $puppet_download_mnt_point => "/mnt" or "oradb/" or "xxxx/"
 
 ## Oracle Big files and alternate download location
 Some manifests like oradb:installdb, opatch or rcu supports an alternative mountpoint for the big oracle setup/install files.
@@ -95,8 +96,7 @@ When not provided it uses the files folder located in the orawls puppet module
 else you can use $source =>
 - "/mnt"
 - "/vagrant"
-- "puppet:///modules/oradb/" (default)
-- "puppet:///database/"
+- "oradb/" (default)
 
 when the files are also locally accessible then you can also set $remote_file => false this will not move the files to the download folder, just extract or install
 
@@ -216,7 +216,7 @@ install the following module to set the database user limits parameters
 
 ## Database install
 
-    $puppet_download_mnt_point = "puppet:///modules/oradb/"
+    $puppet_download_mnt_point = "oradb/"
 
     oradb::installdb{ '12.2.0.1_Linux-x86-64':
       version                   => '12.2.0.1',
@@ -339,6 +339,20 @@ For opatchupgrade you need to provide the Oracle support csi_number and supportI
       puppet_download_mnt_point => $puppet_download_mnt_point,
       require                   =>  Oradb::Installdb['112030_Linux-x86-64'],
     }
+
+    oradb::opatchupgrade{'122000_opatch_upgrade_db':
+      oracle_home               => hiera('oracle_home_dir'),
+      patch_file                => 'p6880880_122010_Linux-x86-64.zip',
+      csi_number                => undef,
+      support_id                => undef,
+      opversion                 => '12.2.0.1.8',
+      user                      => hiera('oracle_os_user'),
+      group                     => hiera('oracle_os_group'),
+      download_dir              => hiera('oracle_download_dir'),
+      puppet_download_mnt_point => hiera('oracle_source'),
+      require                   => Oradb::Installdb['db_linux-x64'],
+    }
+
 
 ### Opatch
 
@@ -525,10 +539,12 @@ to use the new opatchauto utility(12.1) instead of opatch auto(11.2) use this pa
 based on your own dbt template ( not seeded )
 
 The template must be have the following extension dbt.erb like dbtemplate_12.1.dbt.erb, use puppet_download_mnt_point parameter for the template location or add your template to the template dir of the oradb module
-- Click here for an [12.1 db instance template example](https://github.com/biemond/biemond-oradb/blob/master/templates/dbtemplate_12.1.dbt.erb)
-- Click here for an [12.1 db instance variables template example](https://github.com/biemond/biemond-oradb/blob/master/templates/dbtemplate_12.1_vars.dbt.erb)
-- Click here for an [12.1 db asm instance template example](https://github.com/biemond/biemond-oradb/blob/master/templates/dbtemplate_12.1_asm.dbt.erb)
-- Click here for an [11.2 db asm instance template example](https://github.com/biemond/biemond-oradb/blob/master/templates/dbtemplate_11gR2_asm.dbt.erb)
+- Click here for an [12.2 db instance template example](https://github.com/biemond/biemond-oradb/blob/puppet4_3_data/templates/dbtemplate_12.2.dbt.erb)
+- Click here for an [12.1 db instance template example](https://github.com/biemond/biemond-oradb/blob/
+puppet4_3_data/templates/dbtemplate_12.1.dbt.erb)
+- Click here for an [12.1 db instance variables template example](https://github.com/biemond/biemond-oradb/blob/puppet4_3_data/templates/dbtemplate_12.1_vars.dbt.erb)
+- Click here for an [12.1 db asm instance template example](https://github.com/biemond/biemond-oradb/blob/puppet4_3_data/templates/dbtemplate_12.1_asm.dbt.erb)
+- Click here for an [11.2 db asm instance template example](https://github.com/biemond/biemond-oradb/blob/puppet4_3_data/templates/dbtemplate_11gR2_asm.dbt.erb)
 
 with a template of the oradb module
 
@@ -539,7 +555,7 @@ with a template of the oradb module
       user                      => 'oracle',
       group                     => 'dba',
       template                  => 'dbtemplate_12.1', # or dbtemplate_12.1_vars, dbtemplate_11gR2_asm, this will use dbtemplate_12.1.dbt.erb example template
-      # template_variables        => 'location01=/oracle/oradata/,location02=/oracle/oradata/',
+      # template_variables        => { 'location01' => '/oracle/oradata/' , 'location02' => '/oracle/oradata/' }
       download_dir              => '/install',
       action                    => 'create',
       db_name                   => 'test',
@@ -1202,7 +1218,7 @@ or
       download_dir              => '/install',
       bash_profile              => true,
       remote_file               => true,
-      puppet_download_mnt_point => "puppet:///modules/oradb/",
+      puppet_download_mnt_point => "oradb/",
       logoutput                 => true,
     }
 
@@ -1250,6 +1266,32 @@ or
       log_output                  => true,
     }
 
+    oradb::installem{ 'em13200':
+      version                     => '13.2.0.0',
+      file                        => 'em13200p1_linux64',
+      oracle_base_dir             => '/oracle',
+      oracle_home_dir             => '/oracle/product/13.2/em',
+      agent_base_dir              => '/oracle/product/13.2/agent',
+      software_library_dir        => '/oracle/product/13.2/swlib',
+      weblogic_user               => 'weblogic',
+      weblogic_password           => 'Welcome01',
+      database_hostname           => 'emdb.example.com',
+      database_listener_port      => 1521,
+      database_service_sid_name   => 'emrepos.example.com',
+      database_sys_password       => 'Welcome01',
+      sysman_password             => 'Welcome01',
+      agent_registration_password => 'Welcome01',
+      deployment_size             => 'SMALL',
+      user                        => 'oracle',
+      group                       => 'oinstall',
+      download_dir                => '/var/tmp/install',
+      zip_extract                 => false,
+      puppet_download_mnt_point   => '/software',
+      remote_file                 => false,
+      log_output                  => true,
+    }
+
+
     oradb::installem_agent{ 'em12104_agent':
       version                     => '12.1.0.4',
       source                      => 'https://10.10.10.25:7802/em/install/getAgentImage',
@@ -1270,6 +1312,29 @@ or
       download_dir                => '/var/tmp/install',
       log_output                  => true,
       oracle_hostname             => 'emdb.example.com', # FQDN hostname where to install on
+    }
+
+    oradb::installem_agent{ 'em13200_agent':
+      version                     => '13.2.0.0',
+      source                      => 'https://10.10.10.25:7799/em/install/getAgentImage',
+      install_type                => 'agentPull',
+      install_platform            => 'Linux x86-64',
+      install_version             => '13.2.0.0.0',
+      oracle_base_dir             => '/oracle',
+      agent_base_dir              => '/oracle/product/13.2/agent',
+      agent_instance_home_dir     => '/oracle/product/13.2/agent/agent_inst',
+      sysman_user                 => 'sysman',
+      sysman_password             => 'Welcome01',
+      agent_registration_password => 'Welcome01',
+      agent_port                  => 1830,
+      oms_host                    => '10.10.10.25',
+      oms_port                    => 7799,
+      em_upload_port              => 4889,
+      oracle_hostname             => 'emdb.example.com',
+      user                        => 'oracle',
+      group                       => 'dba',
+      download_dir                => '/var/tmp/install',
+      log_output                  => true,
     }
 
     oradb::installem_agent{ 'em12104_agent2':
